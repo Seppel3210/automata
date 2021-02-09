@@ -17,16 +17,13 @@ impl<'a> Automaton<'a> {
         let mut current_state = &self.states[0];
         while input.len() != 0 {
             for i in 0..input.len() {
-                let word = &input[..i + 1];
-                println!("word: {} rest: {}", word, input);
+                let word = &input[..=i];
                 if let Some(state_index) = current_state.transitions.get(word) {
-                    println!("yee");
                     input = &input[word.len()..];
                     current_state = &self.states[*state_index];
                     break;
                 }
             }
-            println!("{:?}", current_state);
         }
     }
 }
