@@ -13,18 +13,25 @@ impl<'a> Automaton<'a> {
         self.states.push(state);
     }
 
-    pub fn run(&self, mut input: &str) {
+    pub fn run(&self, mut input: &str) -> bool {
         let mut current_state = &self.states[0];
         while input.len() != 0 {
+            let mut matched = false;
             for i in 0..input.len() {
                 let word = &input[..=i];
                 if let Some(state_index) = current_state.transitions.get(word) {
                     input = &input[word.len()..];
                     current_state = &self.states[*state_index];
+                    matched = true;
                     break;
                 }
             }
+            if !matched {
+                eprintln!("No match for {}", input);
+                return false;
+            }
         }
+        current_state.end_state
     }
 }
 
@@ -53,5 +60,5 @@ fn main() {
     let mut auto = Automaton::new();
     auto.add_state(State::new([("a", 0), ("b", 1)].iter().map(|v| *v), false));
     auto.add_state(State::new([("a", 1)].iter().map(|v| *v), true));
-    auto.run("aaaaba");
+    auto.run("aaaabc");
 }
