@@ -1,6 +1,4 @@
 use std::collections::BTreeMap;
-use std::collections::BTreeSet;
-use std::io::Write;
 
 #[derive(Debug)]
 struct Automaton<'a> {
@@ -89,48 +87,30 @@ impl<'a> ReverseAutomaton<'a> {
     }
 
     fn print_language(&self) {
-        let mut paths: Vec<_> = self.end_states.iter().map(|i| (*i, String::new())).collect();
+        let mut paths: Vec<_> = self
+            .end_states
+            .iter()
+            .map(|i| (*i, String::new()))
+            .collect();
         while !paths.is_empty() {
-            let mut idcs_to_remove = BTreeSet::new();
-            for i in 0..paths.len() {
-                let state_idx = paths[i].0;
-                if state_idx == 0 {
-                    idcs_to_remove.insert(i);
-                }
-                let mut iter = self.states[state_idx].parent_states.iter();
-                let first = iter.next();
-                for (parent, word) in iter {
-                    fork_path(&mut paths, i, (*parent, word.to_string()));
-                }
-                if let Some(tail) = first {
-                    let mut tail = (tail.0, tail.1.to_owned());
-                    if i == 0 {
-                        fork_path(&mut paths, i, tail.clone());
+            paths = paths
+                .into_iter()
+                .flat_map(|(state_idx, words)| {
+                    if state_idx == 0 {
+                        println!("{}", words);
                     }
-                    if !idcs_to_remove.contains(&i) {
-                        tail.1.push_str(&paths[i].1);
-                        paths[i] = tail;
-                    }
-                }
-            }
-            println!("{:?}", paths);
-            println!("{:?}", idcs_to_remove);
-            std::io::stdin().read_line(&mut String::new());
-            for i in idcs_to_remove.iter().rev() {
-                println!("{}", paths.swap_remove(*i).1);
-            }
+                    self.states[state_idx]
+                        .parent_states
+                        .iter()
+                        .map( move |(parent_idx, word)| {
+                            let mut word = (*word).to_owned();
+                            word.push_str(&words);
+                            (*parent_idx, word)
+                        })
+                })
+                .collect();
         }
     }
-}
-
-fn fork_path(
-    paths: &mut Vec<(usize, String)>,
-    path_idx: usize,
-    mut new_tail: (usize, String),
-) {
-    let old_tail = &paths[path_idx];
-    new_tail.1.push_str(&old_tail.1);
-    paths.push(new_tail);
 }
 
 impl<'a> ReverseState<'a> {
@@ -169,20 +149,17 @@ fn main() {
     auto.add_state(State::new(vec![("2006", 5)], false));
     auto.add_state(State::new(vec![], true));
     let rev_auto = ReverseAutomaton::from_automaton(&auto);
-    //rev_auto.print_language();
+    rev_auto.print_language();
 
     let mut auto = Automaton::new();
-    auto.add_state(State::new(vec![("0", 1)], false));
-    auto.add_state(State::new(vec![("1", 0)], true));
+    auto.add_state(State::new(vec![("0", 1), ("1", 0)], false));
+    auto.add_state(State::new(vec![("0", 1), ("1", 0)], true));
     let rev_auto = ReverseAutomaton::from_automaton(&auto);
-    println!("{:?}", rev_auto);
     rev_auto.print_language();
-    ///*
     loop {
         let mut buf = String::new();
         std::io::stdin().read_line(&mut buf).unwrap();
         let success = auto.run(&buf.trim());
         println!("success: {}", success);
     }
-    //*/
 }
