@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, convert::TryFrom, mem};
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -38,6 +38,54 @@ impl<'a> Automaton<'a> {
         current_state.end_state
     }
 }
+
+#[derive(Debug)]
+pub struct AutomatonParseError(usize);
+
+impl<'a> TryFrom<&'a str> for Automaton<'a> {
+    type Error = AutomatonParseError;
+    fn try_from(s: &'a str) -> Result<Self, AutomatonParseError> {
+        use AutomatonParseError as APE;
+        let mut state_idx: Option<usize> = None;
+        let mut transitions = vec![];
+        let mut final_state = false;
+        let mut states = vec![];
+
+        for (i, line) in s.lines().enumerate() {
+            if line.contains(':') {
+                // push old state
+                if let Some(state_idx) = state_idx {
+                    states.push((state_idx, State::new(mem::take(&mut transitions), final_state)));
+                }
+                // prepare for new one
+                let mut words = line.split(':');
+                let idx = words.next().ok_or(APE(i))?.trim().parse().map_err(|_| APE(i))?;
+                state_idx = Some(idx);
+                final_state = words.next().map_or(false, |s| s.trim() == "final");
+            } else {
+                let mut words = line.split("->");
+                let key = match words.next() {
+                    Some(key) => key.trim(),
+                    None => continue,
+                };
+                let value = match words.next().map(|s| s.trim().parse()) {
+                    Some(Ok(value)) => value,
+                    _ => continue,
+                };
+                transitions.push((key, value));
+            }
+        }
+        // push final state
+        states.push((state_idx.ok_or(APE(0))?, State::new(transitions, final_state)));
+        let mut this = Self::new();
+        states.sort_by_key(|s| s.0);
+        for (_, state) in states {
+            this.add_state(state);
+        }
+        Ok(this)
+    }
+}
+
 
 #[derive(Debug)]
 pub struct State<'a> {
